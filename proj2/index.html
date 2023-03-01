@@ -1,7 +1,272 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Mesh Edit</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2023</h1>
+<h1 align="middle">Project 2: Mesh Edit</h1>
+<h2 align="middle">MANH KHANG NGUYEN, CS184</h2>
+
+<br><br>
+
+<div>
+
+<h2 align="middle">Overview</h2>
+<p>This assignment introduces us to the basic of 3D surfaces and shading. We first learn the Bezier curve where we can draw curves from control points using de Casteljau's algorithm. Then we move from 2D curves to 3D curves using recursion. Next we learn how to Phong shading with normal vertex weight calculation. Then we learn 2 techniques of flipping edges and splitting edges. Applying these two techniques will finally help us to create smooth object from rough texture using loop subdivision for mesh upsampling.</p>
+
+<h2 align="middle">Section I: Bezier Curves and Surfaces</h2>
+
+<h3 align="middle">Part 1: Bezier Curves with 1D de Casteljau Subdivision</h3>
+
+<p>Bezier Curve is a technique in computer graphics to draw curves from control points on a plane. Using de Casteljau's algorithm, we formulate a way to achieve the results mathematically and through code. Every two adjacent points from our control points, we subdivide them by inserting a new point specified the distance by a parameter t, between 0 and 1. We recursively call this algorithm on the newly created points until we only have one point left. This point lies on the Bezier curve that we are looking for. Adjusting the parameter t, it will slide this point along the Bezier curve.  </p>
+<p>Below are screenshots of each step of the evaluation from the 6 original control points to the final evaluated points, along with moving the original control points and modifying the parameter t.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/1a.png" align="middle" width="400px"/>
+        <figcaption align="middle">Original Points with no subdivision</figcaption>
+      </td>
+      <td>
+        <img src="images/1b.png" align="middle" width="400px"/>
+        <figcaption align="middle">1st subdivision level</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/1c.png" align="middle" width="400px"/>
+        <figcaption align="middle">2nd subdivision level</figcaption>
+      </td>
+      <td>
+        <img src="images/1d.png" align="middle" width="400px"/>
+        <figcaption align="middle">3rd subdivision level</figcaption>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img src="images/1e.png" align="middle" width="400px"/>
+        <figcaption align="middle">4th subdivision level</figcaption>
+      </td>
+      <td>
+        <img src="images/1f.png" align="middle" width="400px"/>
+        <figcaption align="middle">5th subdivision level with the final evaluated point</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/1g.png" align="middle" width="400px"/>
+        <figcaption align="middle">5th subdivision level with the completed Bezier curve</figcaption>
+      </td>
+      <td>
+        <img src="images/1h.png" align="middle" width="400px"/>
+        <figcaption align="middle">Adjuting t &lt 0.5 </figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/1i.png" align="middle" width="400px"/>
+        <figcaption align="middle">Adjuting t &gt 0.5 </figcaption>
+      </td>
+      <td>
+        <img src="images/1j.png" align="middle" width="400px"/>
+        <figcaption align="middle">Moving 2 end control points </figcaption>
+      </td>
+    </tr>
+    <br>
+    <br>
+    <tr>
+      <td>
+        <img src="images/1k.png" align="middle" width="400px"/>
+        <figcaption align="middle">Moving all control points</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+
+
+<h3 align="middle">Part 2: Bezier Surfaces with Separable 1D de Casteljau</h3>
+
+<p>In this part, we extend from 2D curves to 3D surface with the same idea of using the de Casteljau’s algorithm to extend to Bezier surfaces. In the previous part, we have n control points for each Bezier curve, in this part we have n x m control points, each n points for m Bezier curves. We connect all these m points for another curve in another direction. Sliding this curve along the m Bezier curves we created swipe a surface. </p>
+<p>In implementing this part, we have additional parameter u and v. Both are basically parameter t mentioned in previous part, with u in the direction of the m Bezier curves we first create, and v in the direction of connecting the final points of those Bezier curves. I took advantage of what already implemented on evaluateStep1D and recursively call on the function until it becomes degree 1. evaluate will make sure all the points of those Bezier curves are connected to get one final Bezier point.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/2.png" align="middle" width="400px"/>
+        <figcaption align="middle">de Casteljau's algorithm on 3D surface (Teapot)</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h2 align="middle">Section II: Triangle Meshes and Half-Edge Data Structure</h2>
+
+<h3 align="middle">Part 3: Area-Weighted Vertex Normals</h3>
+
+<p>Area-weighted normals will provide better shading for smooth surfaces, by blending in the neighbor colors. This is Phone shading as opposed to the default flat surface shading that is used for 2D samples. </p>
+<p>First we need to make sure the face we sample is not the boundary, because we do not want to sample the background or different object colors. We traverse each face that shares the same vertex with our sampled triangle to determine the weighted average color. We do so by computing their areas, which in my code I used the cross product of two edge vectors, which is parallelogram area, divided by 2 to get a triangle area. Finally, we normalize the sum of all area-weighted normals to get our normal vector that determines the resultant color.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/3a.png" align="middle" width="400px"/>
+        <figcaption align="middle">Default flat shading</figcaption>
+      </td>
+      <td>
+        <img src="images/3b.png" align="middle" width="400px"/>
+        <figcaption align="middle">Smooth normals Phong shading</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 4: Edge Flip</h3>
+
+<p>In this task, we flip an edge that is connected to two opposite vertices to the other two opposite vertices. It is important to draw this part out on some scratch papers to keep track of all elements: half edges, vertices, edges, faces, both before and after the operation. In my implementation I followed the class structure of having my half edges traverse counterclockwise, but the opposite orientation should achieve the same result.</p>
+<p>The picture below is a picture of one of my scratch pages out of so many of them.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/4a.png" align="middle" width="400px"/>
+        <figcaption align="middle">My element labeling</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<p>Implementation of this part should be straightforward as long as we keep tracks of all elements correctly. For example, I set h0 to be halfedge bc; after flipping edges bc to cd, I need to update h0 to be ad, keep in mind of the counterclockwise orientation, and update the adjacent vertices accordingly. And then update other elements after correctly updating the new half edges, such as b is half edge 5 instead of 4 in my case. </p>
+<p>The most helpful implementation tricks in this section is to change as minimal elements as needed. Here you can see I keep the vertices, edges, faces, and outer half edges the same to avoid errors. I indeed ran into quite a few errors before coming with this final recommendation.</p>
+
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/4b.png" align="middle" width="400px"/>
+        <figcaption align="middle">Original teapot</figcaption>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img src="images/4c.png" align="middle" width="400px"/>
+        <figcaption align="middle">One edge flip</figcaption>
+      </td>
+    </tr>
+    <tr>
+      <td>
+        <img src="images/4d.png" align="middle" width="400px"/>
+        <figcaption align="middle">Multiple edges flip</figcaption>
+      </td>
+    </tr>
+    <br>
+  </table>
+</div>
+
+<h3 align="middle">Part 5: Edge Split</h3>
+
+<p>Similar to flipping edge operation, we first need to declare all of the elements and make sure they are correctly labeled on our scratch paper. We split the edge by finding a midpoint on a called edge, which needs to be already connected to two opposite edges. We then connect the two other vertices to this newly created point. </p>
+<p>Follow my draft below for reference. As mentioned above in part 4, we would try to reuse as many old elements as possible. So instead of making two new half edges for bm and mc, we keep mc as h0, which would reserve the two adjacent faces to be the same e0 and e1. Thus, we only create 1 new half edge bm instead of two half edges bm and mc. In summary, a half-edge split requires us to create 1 new vertex, 2 new faces, 3 new edges, and 6 new half edges. </p>
+<p>As in my debugging journey, I made everything after the the flipping edges operations new, which created some extra assignments that needed to be removed at the end. I ran some bugs where new elements pointing to another new elements instead of the ones I needed, and removing elements causing the elements to not pointing the correct element. So I highly recommend having a solid reference draft picture and minimizing the number of new elements as possible.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/5a.png" align="middle" width="400px"/>
+        <figcaption align="middle">My labeling draft</figcaption>
+      </td>
+      <td>
+        <img src="images/5b.png" align="middle" width="400px"/>
+        <figcaption align="middle">Original teapot</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/5c.png" align="middle" width="400px"/>
+        <figcaption align="middle">One edge split</figcaption>
+      </td>
+      <td>
+        <img src="images/5d.png" align="middle" width="400px"/>
+        <figcaption align="middle">Multiple edges split</figcaption>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<h3 align="middle">Part 6: Loop Subdivision for Mesh Upsampling</h3>
+
+<p>Similar to flipping edge operation, we first need to declare all of the elements and make sure they are correctly labeled on our scratch paper. We split the edge by finding a midpoint on a called edge, which needs to be already connected to two opposite edges. We then connect the two other vertices to this newly created point.</p>
+<p>Follow my draft below for reference. As mentioned above in part 4, we would try to reuse as many old elements as possible. So instead of making two new half edges for bm and mc, we keep mc as h0, which would reserve the two adjacent faces to be the same e0 and e1. Thus, we only create 1 new half edge bm instead of two half edges bm and mc. In summary, a half-edge split requires us to create 1 new vertex, 2 new faces, 3 new edges, and 6 new half edges. </p>
+<p>As in my debugging journey, I made everything after the the flipping edges operations new, which created some extra assignments that needed to be removed at the end. I ran some bugs where new elements pointing to another new elements instead of the ones I needed, and removing elements causing the elements to not pointing the correct element. So I highly recommend having a solid reference draft picture and minimizing the number of new elements as possible.</p>
+
+<div align="middle">
+  <table style="width=100%">
+    <tr>
+      <td>
+        <img src="images/6a.png" align="middle" width="400px"/>
+        <figcaption align="middle">Original Cube</figcaption>
+      </td>
+      <td>
+        <img src="images/6d.png" align="middle" width="400px"/>
+        <figcaption align="middle">Pre-processed Cube</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/6b.png" align="middle" width="400px"/>
+        <figcaption align="middle">Cube after 1 upsample</figcaption>
+      </td>
+      <td>
+        <img src="images/6e.png" align="middle" width="400px"/>
+        <figcaption align="middle">Pre-processed cube after 1 upsample</figcaption>
+      </td>
+    </tr>
+    <br>
+    <tr>
+      <td>
+        <img src="images/6c.png" align="middle" width="400px"/>
+        <figcaption align="middle">Cube after 4 upsamples</figcaption>
+      </td>
+      <td>
+        <img src="images/6f.png" align="middle" width="400px"/>
+        <figcaption align="middle">Pre-processed cube after 4 upsamples</figcaption>
+      </td>
+    </tr>
+
+  </table>
+</div>
+
+
+</body>
 </html>
