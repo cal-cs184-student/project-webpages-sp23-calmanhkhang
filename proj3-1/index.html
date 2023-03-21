@@ -1,7 +1,367 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 3-1 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Pathtracer</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2023</h1>
+<h1 align="middle">Project 3-1: Pathtracer</h1>
+<h2 align="middle">MANH KHANG NGUYEN, CS184</h2>
+
+<br><br>
+
+<div>
+    
+    <h2 align="middle">Overview</h2>
+    <p>This assignment introduces us to the basic of tracing light to objects. In part one we can get learn to sample every point from the image space to the camera space. In part two we improve the the primitives intersection efficiency by constructing the BVH algorithm. In part three we start to get single light intersect the object with direct illumination. However, there are a lot of noise with this method. So in part 4 we introduce indirect illumination to achieve a more realistic scenes by having light bouncing off objects, thus reducing a lot of noise. Part 5 has us enable adaptive sampling to improve pathracing efficiency by sample important coverages more and non-imporant coverages less. </p>
+    
+    <h3 align="middle">Part 1: Ray Generation and Scene Intersection</h3>
+    
+    <p> In part 1, we implement how rays enter the camera along with checking whether rays intersect with the objects, specifically the triangles and spheres. Because not all light rays from the source will be in the scene to the camera, instead we sample from the camera position at every point on the scene for efficiency. </p>
+    <p> We have image space, in which every pixel is represented by the coordinates of (0, 0) for the bottom left corner, (1,1) for the top right corner, and (0.5, 0.5) for the center. However, we must convert to the world space, which spans from -tan(0.5 x hFov) to tan(0.5 x hFov) in the horizontal direction, and -tan(0.5 x vFov) to tan(0.5 x vFov) in the vertical direction, and center at (0, 0, -1). Note that the coordinates in both spaces must be normalized. </p>
+    <p> By shifting and scaling x and y values appropriately, we obtain the sample coordinates on the camera space. We then need to create a Ray object that contains a parameter of the origin and direction in world space view. Origin will be the camera position and direction will be from the origin to the converted sample on the camera’s sensor. That is 1 sample, we need a loop to sample up to the num_samples to get the entire coverage. </p>
+    <p> For the triangle intersection, I made use of the Moller–Trumbore algorithm instead of the 3-line test as we learned before for efficiency. View the image below for reference, where O is the origin, D is the direction, t is time, P_i’s are the point’s coordinates, and b_i’s are the barycentric coordinates. After following the algorithm, we should be able to obtain t and b_i’s, which will be used to check for intersections. As we learned from barycentric coordinates, all b_i’s have to be between 0 and 1 and they must sum to 1. t needs to be between the ray’s minimum and maximum time, which we originally set at the camera clipping plane so we know it is in the valid range. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part1/moller_trumbore.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Moller–Trumbore algorithm</figcaption>
+                </td>
+        </table>
+    </div>
+    
+    <br> <br>
+    <p> Below are the images with normal shading for a few small .dae files. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part1/CBEmpty.png" align="middle" width="400px"/>
+                    <figcaption align="middle">CBEmpty normal shading</figcaption>
+                </td>
+                <td>
+                    <img src="images/part1/CBSphere.png" align="middle" width="400px"/>
+                    <figcaption align="middle">CBSphere normals shading</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    
+    <h3 align="middle">Part 2: Bounding Volume Hierarchy</h3>
+    
+    <p> With more complex scenes, there are more primitives (i.e., triangles) to render images. In this part we use the BVH algorithm to to assist ray intersection by primitives subdivision.  </p>
+    <p> In my BVN construction algorithm, I keep splitting the primitives in the scene to the left and right child nodes until the number of primitives in a node is less than or equal to max_leaf_size. Because the scene or object is in 3D space, I first determine which x, y, or z axis to split by picking the longest length out of the 3 axes. Then I determine the split point by averaging the centroids of all primitives. If it is less than or equal to the split point, the primitives will go to the left node, otherwise they will go to the right node. We recursively call on this algorithm on both of the left and right nodes until num_primitives &le max_leaf_size. </p>
+    <p> Below are the visual representations of how construct_BVH split Cow.dae to left and right nodes. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part2/cow_mesh.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Cow Mesh</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part2/cow_left.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Left Node</figcaption>
+                </td>
+                <td>
+                    <img src="images/part2/cow_right.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Right Node</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part2/cow_left_left.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Left->Left Node</figcaption>
+                </td>
+                <td>
+                    <img src="images/part2/cow_right_right.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Right->Right Node</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    
+    <p> Here are the images that are rendered using the BVH acceleration. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part2/2a.png" align="middle" width="400px"/>
+                    <figcaption align="middle">cow.dae</figcaption>
+                </td>
+                <td>
+                    <img src="images/part2/2b.png" align="middle" width="400px"/>
+                    <figcaption align="middle">maxplanck.dae</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part2/2c.png" align="middle" width="400px"/>
+                    <figcaption align="middle">CBlucy.dae</figcaption>
+                </td>
+                <td>
+                    <img src="images/part2/2d.png" align="middle" width="400px"/>
+                    <figcaption align="middle">beast.dae</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <h3 align="middle">Part 3: Direct Illumination</h3>
+    
+    <p> In this part, we have two implementations of the direct lighting function: uniformly in a hemisphere sampling and importance sampling. </p>
+    <p> For uniformly sampling uniformly across a hemisphere, we loop through the total number of samples to check if each ray intersects the object. BSDF function f(w_r, w_r) with parameters w_i as incoming light direction and w_r as outgoing direction returns the ratio of reflected radiance w_r to the irradiance of w_i. Each w_in will be randomly generated by the Monte Carlo estimation to help mitigate the noise. Depending on the object surface, we can get their unique emission value by calling .bsdf->get_emission() on the intersection point. Each sample ray will be the total product of emission, BSDF f function, and the corresponding theta angle, divided by the pdf, according to the reflection equation. The pdf will be 1/2π as we have each ray contribute equally to half of the sphere. We then sum all of the samples and average them all to get the final L_out. </p>
+    
+    <p> Below are the images rendered with both implementations of the direct lighting function. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part3/bunny_hemisphere.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Uniform Hemisphere Sampling</figcaption>
+                </td>
+                <td>
+                    <img src="images/part3/bunny_importance.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Importance Sampling</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <p> Here are images from CBbunny that compares the noise levels in soft shadows when rendering with 1, 4, 16, and 64 light rays. 1 sample per pixel. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part3/bunny_1_1.png" align="middle" width="400px"/>
+                    <figcaption align="middle">1 ray</figcaption>
+                </td>
+                <td>
+                    <img src="images/part3/bunny_1_4.png" align="middle" width="400px"/>
+                    <figcaption align="middle">2 rays</figcaption>
+                </td>
+            </tr>
+            <br>
+            <tr>
+                <td>
+                    <img src="images/part3/bunny_1_16.png" align="middle" width="400px"/>
+                    <figcaption align="middle">4 rays</figcaption>
+                </td>
+                <td>
+                    <img src="images/part3/bunny_1_64.png" align="middle" width="400px"/>
+                    <figcaption align="middle">64 rays</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <p> From the two images CBbunny from uniform hemisphere sampling and importance sampling, we can see that the uniform hemisphere sampling image has more noise. This is because we take samples in all directions toward a hitpoint. Meanwhile for importance sampling, we only use rays that point toward the light. This is why the importance sampling is also darker, because the incoming radiance is almost none for all other directions except the top of the bunny. </p>
+    
+    <h3 align="middle">Part 4: Global Illumination</h3>
+    
+    <p> Direct lighting only accounts for 1 bounce of light, which makes the images do not look as realistic as they should. In reality, light bounces of objects creates a nice effect of illumination.</p>
+    <p> For direct lighting, we only have to take care of zero_bounce_radiance function. This function simply returns the bsdf emission of the object at the hit point if light intersects. </p>
+    <p> For indirect lighting, in addition to having zero_bounce_radiance, we need to recursively call on at_least_one_bounce function to account for light being reflected off the objects and hitting another object. Very similar to the method of uniform sampling and importance sampling, we need to obtain important parameters such as the emitted radiance, intersecting ray, cosine theta angle, and then get the sample by multiplying these variables together. However in this function, we introduce a few more variables such as cpdf to be divided from the sample, the ray depth to keep track of the current depth to sample as long as the ray depth is greater than 0. </p>
+    <p> In reality, light will keep on bouncing off almost infinitely. However infinite loop is bad in coding so we need a way to stop this from happening, as the latter on bounced light ray will be less important than the first few ones. Here we use Russian roulette, where I use the termination with a probability of 0.65. </p>
+    
+    <p> Here are CBbunny images, with direct and indirect illumination. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part4/bunny_direct.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Direct Lighting</figcaption>
+                </td>
+                <td>
+                    <img src="images/part4/bunny_indirect.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Indirect Lighting</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <p> Here are CBbunny images, with max_ray_depth set to 0, 1, 2, 3, and 100. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part4/bunny_m0.png" align="middle" width="400px"/>
+                    <figcaption align="middle">m = 0</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part4/bunny_m1.png" align="middle" width="400px"/>
+                    <figcaption align="middle">m = 1</figcaption>
+                </td>
+                <td>
+                    <img src="images/part4/bunny_m2.png" align="middle" width="400px"/>
+                    <figcaption align="middle">m = 2</figcaption>
+                </td>
+            </tr>
+            <br>
+            <tr>
+                <td>
+                    <img src="images/part4/bunny_m3.png" align="middle" width="400px"/>
+                    <figcaption align="middle">m = 3</figcaption>
+                </td>
+                <td>
+                    <img src="images/part4/bunny_m100.png" align="middle" width="400px"/>
+                    <figcaption align="middle">m = 100</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    
+    <p> Here are CBbunny images, with 4 light rays, rendered at 1, 2, 4, 8, 16, 64, and 1024 sample-per-pixel rates. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part4/bunny_1_4.png" align="middle" width="400px"/>
+                    <figcaption align="middle">1 sample-per-pixel</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part4/bunny_2_4.png" align="middle" width="400px"/>
+                    <figcaption align="middle">2 sample-per-pixel</figcaption>
+                </td>
+                <td>
+                    <img src="images/part4/bunny_4_4.png" align="middle" width="400px"/>
+                    <figcaption align="middle">4 sample-per-pixel</figcaption>
+                </td>
+            </tr>
+            <br>
+            <tr>
+                <td>
+                    <img src="images/part4/bunny_8_4.png" align="middle" width="400px"/>
+                    <figcaption align="middle">8 sample-per-pixel</figcaption>
+                </td>
+                <td>
+                    <img src="images/part4/bunny_16_4.png" align="middle" width="400px"/>
+                    <figcaption align="middle">16 sample-per-pixel</figcaption>
+                </td>
+            </tr>
+            <br>
+            <tr>
+                <td>
+                    <img src="images/part4/bunny_64_4.png" align="middle" width="400px"/>
+                    <figcaption align="middle">64 sample-per-pixel</figcaption>
+                </td>
+                <td>
+                    <img src="images/part4/bunny_1024_4.png" align="middle" width="400px"/>
+                    <figcaption align="middle">1024 sample-per-pixel</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <h3 align="middle">Part 5: Adaptive Sampling</h3>
+    
+    <p> The previous part helps us a lot in removing noise. However, when looking at most scenes, we can see that not every space needs to be sampled thousands of times, while some important areas need additional samples. Adaptive sampling is a method that is used to optimize this process of determining important coverages for sampling. </p>
+    <p> Below are the formulas that are used for adaptive sampling in this project. n is the number of samples, μ is mean, σ is the standard deviation, maxTolerance ⋅ μ is the cut off value for the pixel convergence I value, where we set maxTolerance=0.05. x_k is the pixel’s illuminance. Here we set I = 1.96 * σ / sqrt(n) because 1.96 represents 95% confidence interval. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part5/pixel_convergence.png" align="middle" width="400px"/>
+                    <figcaption align="middle">CBEmpty normal shading</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <br><br>
+    <p> Now we update the raytrace_pixel function to intelligently loop through the number of samples. We split the number of samples to smaller batches to check for convergence. Instead of going from 0 to num_samples, every samplesPerPatch, we check the pixel’s converged condition above. If it satisfies the condition, we do not need to keep sampling anymore, otherwise the loop continues. Note that sampleCountBuffer needs to be updated according to the number that we actually sample, not the total number of samples like before. </p>
+    <p> Below are the images with their maps showing the different regions that got sample with adaptive sampling enabled. 2048 samples, 1 light ray, and max ray depth 5. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part5/bunny_2048_a.png" align="middle" width="400px"/>
+                    <figcaption align="middle">CBbunny</figcaption>
+                </td>
+                <td>
+                    <img src="images/part5/bunny_2048_a_rate.png" align="middle" width="400px"/>
+                    <figcaption align="middle">CBbunny's sample rate of pixel</figcaption>
+                </td>
+            </tr>
+            <br>
+            <tr>
+                <td>
+                    <img src="images/part5/CBspheres_lambertian_2048.png" align="middle" width="400px"/>
+                    <figcaption align="middle">CBSphere</figcaption>
+                </td>
+                <td>
+                    <img src="images/part5/CBspheres_lambertian_2048_rate.png" align="middle" width="400px"/>
+                    <figcaption align="middle">CBspheres' sample rate of each pixel</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <p> All images are put in the project write up folder. </p>
+</body>
 </html>
