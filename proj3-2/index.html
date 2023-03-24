@@ -1,7 +1,199 @@
-<html>
-	<head>
-	</head>
-	<body>
-		Project 3-2 here
-	</body>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head>
+<style>
+  body {
+    padding: 100px;
+    width: 1000px;
+    margin: auto;
+    text-align: left;
+    font-weight: 300;
+    font-family: 'Open Sans', sans-serif;
+    color: #121212;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Source Sans Pro', sans-serif;
+  }
+</style>
+<title>CS 184 Pathtracer</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro" rel="stylesheet">
+</head>
+
+
+<body>
+
+<h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2023</h1>
+<h1 align="middle">Project 3-2: Pathtracer Part 2</h1>
+<h2 align="middle">MANH KHANG NGUYEN, CS184</h2>
+
+<br>
+
+<div>
+    
+    <h2 align="middle">Overview</h2>
+    <p> In this assignment, I applied different textures on objects as a continuation to Project 3-1. In part 1, we have mirror and glass materials, where this could be implemented using reflection and refraction techniques. In part 2, we broaden our microfacet BRDF texture by obtaining actual material’s refractive indices at RGB wavelengths with a different importance sampling implementation. </p>
+    <br>
+    
+    <h2 align="middle">Part 1: Ray Generation and Scene Intersection</h2>
+    
+    <p> Part 1 has us applying mirror and glass material surface on objects that we successfully rendered in project 3-1 by implementing reflection and refraction. Mirror material will have reflection only while glass material will have both reflected and refraction. </p>
+    <p> Here is a sequence of six images of scene CBspheres.dae rendered with max_ray_depth set to 0, 1, 2, 3, 4, 5, and 100. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part1/spheres_256_5_0.png" align="middle" width="400px"/>
+                    <figcaption align="middle">M = 0</figcaption>
+                </td>
+                <td>
+                    <img src="images/part1/spheres_256_5_1.png" align="middle" width="400px"/>
+                    <figcaption align="middle">M = 1</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <p> At M = 0, there is zero bounce, so we do not have any lightning. The only thing that is lit up is the light source itself, and it does not shine rays so everything will be black. </p>
+    <p> At M = 1, we start to get color from the scene. Interestingly, the spheres are black. This is because the spheres are mirror and glass materials, and they do not emit any light. They need to have incident rays from the environment to bounce to the camera. And because we only allow one bounce, the only light the spheres bounce off from is the light source, which is why we can see the light source on the spheres along with the dark ceiling. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part1/spheres_256_5_2.png" align="middle" width="400px"/>
+                    <figcaption align="middle">M = 2</figcaption>
+                </td>
+                <td>
+                    <img src="images/part1/spheres_256_5_3.png" align="middle" width="400px"/>
+                    <figcaption align="middle">M = 3</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <p> At M = 2, there are more lights bouncing off from the environment, which can be explained from the reflection from the boxes on the mirror sphere (left). It still does not have enough bounce to get the ceiling color. The glass sphere is getting some light refracted, and some light reflected, however, it is not enough for us to see the clear environment box. </p>
+    <p> At M = 3, the mirror sphere has the reflection from the ceiling now. The glass sphere becomes brighter and we can see the scene environment on it. Overall, the scene is getting more realistic. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part1/spheres_256_5_4.png" align="middle" width="400px" margin="50px"/>
+                    <figcaption align="middle">M = 4</figcaption>
+                </td>
+                <td>
+                    <img src="images/part1/spheres_256_5_5.png" align="middle" width="400px"/>
+                    <figcaption align="middle">M = 5</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <p> At M = 4, the brightness is getting better. One difference between this and M = 3 is the light that the glass ball refracts on the blue wall. </p>
+    <p> At M = 5, the image becomes realistic with clear color, light, and image in this scene. There is not much of a difference between this and M = 4. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part1/spheres_256_5_100.png" align="middle" width="400px"/>
+                    <figcaption align="middle">M = 100</figcaption>
+                </td>
+        </table>
+    </div>
+
+    <p> At M = 100, overall it just looks a tiny bit brighter than M = 5 with better color. However, we can hardly tell any differences between this scene and M = 5. </p>
+    <br>
+    
+    <h3 align="middle">Part 2: Microfacet Material</h3>
+    
+    <p> Similar to part 1, part 2 has us implement microfacet materials on our object, which means getting light refraction on rough surfaces. Because different conductive materials have different values of refraction to make them look distinguishable, we need to formulate a way to represent this mathematically. By following the microfacet BRDF model introduced <a href="https://cs184.eecs.berkeley.edu/sp23/docs/proj3-2-part-2">here</a>, we compute the normal distribution NDF, the Fresnel term, and adjusting with new implementation of importance sampling, we can achieve a way to represent any material texture we want on our object. </p>
+    <p> Here is a sequence of 4 images of scene CBdragon_microfacet_au.dae rendered with α set to 0.005, 0.05, 0.25 and 0.5. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part2/dragon_256_4_7_a0.005.png" align="middle" width="400px"/>
+                    <figcaption align="middle">α = 0.005</figcaption>
+                </td>
+                <td>
+                    <img src="images/part2/dragon_256_4_7_a0.05.png" align="middle" width="400px"/>
+                    <figcaption align="middle">α = 0.05</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <p> At α = 0.005, the dragon has the least surface roughness, which allows the most light reflection. Here we only sample at 1 sample per light, so this reflective material appears darker, thus more noise we can see from the light reflection. There is some dark black color on the dragon due to light coming from this direction. </p>
+
+    <p> At α = 0.05, the dragon looks nicer at a shinier gold color. The black region where light cannot hit becomes clearer. Because less roughness means less reflective, there appears to be less light noise on this scene. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part2/dragon_256_4_7_a0.25.png" align="middle" width="400px"/>
+                    <figcaption align="middle">α = 0.25</figcaption>
+                </td>
+                <td>
+                    <img src="images/part2/dragon_256_4_7_a0.5.png" align="middle" width="400px"/>
+                    <figcaption align="middle">α = 0.5</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <p> At α = 0.25, there is a clear roughness appearance on the dragon with a tiny bit of the purple tint reflection from the wall. There is almost no light noise in this scene. </p>
+    
+    <p> At α = 0.5, the dragon becomes rough that it looks like matte material, with almost no reflection at all, therefore no noise. </p>
+    
+    <br>
+    
+    <p> Here are two images of scene CBbunny_microfacet_cu.dae rendered using cosine hemisphere sampling (default) and your importance sampling. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part2/bunny_64_1_7_hemisphere.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Cosine hemisphere sampling</figcaption>
+                </td>
+                <td>
+                    <img src="images/part2/bunny_64_1_7_importance.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Importance sampling</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <p> The uniform hemisphere sampling method has significantly more noise and artifacts on the bunny than the importance sampling method. This is because uniform hemisphere sampling has a slower convergence rate than importance sampling. </p>
+    
+    <br>
+    
+    <p> Here is CBbunny.dae that has been modified to have different microfacet materials. </p>
+    
+    <div align="middle">
+        <table style="width=100%">
+            <tr>
+                <td>
+                    <img src="images/part2/bunny_1024_4_7_ti.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Titanium bunny</figcaption>
+                </td>
+                <td>
+                    <img src="images/part2/bunny_1024_4_7_C12H4N4.png" align="middle" width="400px"/>
+                    <figcaption align="middle">Lithium Tetracyanoquinodimethane bunny</figcaption>
+                </td>
+            </tr>
+        </table>
+    </div>
+    
+    <p> Here I changed η and k values to obtain different microfacet material. The bunny on the left is rendered with Titanium texture. The bunny on the right is modified with Lithium Tetracyanoquinodimethane (C12H4N4) texture. Values are obtained from https://refractiveindex.info/. </p>
+    
+    <br><br>
+    
+    <p> All images are put in the project write up folder. </p>
+</body>
 </html>
